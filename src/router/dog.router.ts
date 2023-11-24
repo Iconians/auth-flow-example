@@ -1,13 +1,17 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import { prisma } from "../../prisma/db.setup";
 import "express-async-errors";
 import { validateRequest } from "zod-express-middleware";
 import { z } from "zod";
 import { intParseableString as intParseableString } from "../zod/parseableString.schema";
+import { authMiddleWare, getDataFromAuthToken } from "../auth-utils";
 
 const dogController = Router();
 // TODO
 // Needs ______?
+// if user a has headers with token
+// Authorize if a user can see all dogs
+// otherwise return 401 message and redirect to login page
 dogController.get("/dogs", async (req, res) => {
   const dogs = await prisma.dog.findMany();
   return res.json(dogs);
@@ -15,6 +19,8 @@ dogController.get("/dogs", async (req, res) => {
 
 // TODO
 // Needs ______?
+// authorize if a user can create a dog
+// if not then return 401 message
 dogController.post(
   "/dogs",
   validateRequest({
@@ -23,25 +29,14 @@ dogController.post(
       userEmail: z.string().email(),
     }),
   }),
+  authMiddleWare,
   async (req, res) => {
-    const { name, userEmail } = req.body;
-    const user = await prisma.user
-      .findFirstOrThrow({
-        where: {
-          email: userEmail,
-        },
-      })
-      .catch(() => null);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
+    const { name } = req.body;
     const dog = await prisma.dog
       .create({
         data: {
           name,
-          userEmail,
+          userEmail: req.user!.email,
         },
       })
       .catch(() => null);
@@ -55,6 +50,8 @@ dogController.post(
 
 // TODO
 // Needs ______?
+// authorize if a user can change a dog
+// otherwise return 401 message
 dogController.patch(
   "/dogs/:dogId",
   validateRequest({
@@ -102,6 +99,8 @@ dogController.patch(
 
 // TODO
 // Needs _____?
+// authorize if a user can delete a dog
+// otherwise return 401 message
 dogController.delete(
   "/dogs/:dogId",
   validateRequest({
